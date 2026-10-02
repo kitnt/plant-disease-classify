@@ -4,15 +4,49 @@
     <meta charset="UTF-8">
     <title>植物叶片病害分类</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <style>
+        <style>
         body { font-family: sans-serif; text-align: center; margin-top: 40px; }
+        
+       h1 {
+    font-size: 80px;           /* 固定字号，不再用 vw，这样屏幕变小时字不会缩得太夸张 */
+    font-weight: 900;
+    color: #1f4630;
+    margin-top: 50px;
+    margin-bottom: 30px;
+    letter-spacing: 5px;
+    
+    /* 新增的防换行核心代码 */
+    white-space: nowrap;       /* 强制这一行不换行 */
+    display: flex;             /* 开启弹性布局，方便对齐叶子 */
+    justify-content: center;   /* 居中 */
+    align-items: center;       /* 垂直居中 */
+    gap: 20px;                 /* 叶子和文字的间距 */
+}
+/* 新增的动画核心代码 */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+}
+
+.main-title span {
+    display: inline-block;
+    animation: float 2s ease-in-out infinite;
+}
+
+.main-title span:last-child {
+    animation-delay: 1s;
+}
+
+/* ...后面的 button 等代码... */
+
         #preview { max-width: 500px; margin: 20px auto; display: block; border: 1px solid #ccc; }
         #result-box { margin-top: 20px; font-size: 24px; color: #2c3e50; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h1>植物叶片病害分类平台</h1>
+    <h1 class="main-title"><span>🌿</span> 智能植物医生 <span>🌿</span></h1>
     <p>请上传一张植物叶片图片进行识别</p>
 
     <input type="file" id="fileInput" accept="image/*" onchange="previewAndSend()">
