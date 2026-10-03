@@ -5,13 +5,29 @@
     <title>植物叶片病害分类</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
         <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 40px; }
+                body { 
+            font-family: sans-serif; 
+            text-align: center; 
+            margin-top: 40px; 
+            
+            /* ===== 新增的图片背景代码 ===== */
+            background-image: url('/static/images/bj.jpg'); 
+            background-size: cover;       
+            background-position: center;  
+            background-repeat: no-repeat; 
+            background-attachment: fixed; 
+
+            /* 下面这两行是你之前写的防换行代码 */
+            min-width: 1000px;         
+            overflow-x: auto;          
+        }
         
        h1 {
-    font-size: 80px;           /* 固定字号，不再用 vw，这样屏幕变小时字不会缩得太夸张 */
+    font-size: 100px;           /* 固定字号，不再用 vw，这样屏幕变小时字不会缩得太夸张 */
     font-weight: 900;
-    color: #1f4630;
-    margin-top: 50px;
+    color: #1f4630; 
+    text-shadow: 2px 2px 8px rgba(255, 255, 255, 0.9); /* 新增：白色发光 */
+    margin-top: 100px;
     margin-bottom: 30px;
     letter-spacing: 5px;
     
@@ -41,19 +57,68 @@
 /* ...后面的 button 等代码... */
 
         #preview { max-width: 500px; margin: 20px auto; display: block; border: 1px solid #ccc; }
-        #result-box { margin-top: 20px; font-size: 24px; color: #2c3e50; }
+                #result-box { 
+            /* margin-top 控制它和上方元素的距离，数字越小，它就越靠上 */
+            margin-top: -180px;   /* 改成负数，它就会往上跑 */
+            font-size: 24px; 
+            color: #2c3e50; 
+            text-shadow: 2px 2px 8px rgba(255, 255, 255, 0.9); /* 这行之前的白色阴影保留 */
+        }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+                /* 全新的拖拽上传框样式 */
+        .drop-zone {
+            width: 400px;
+            height: 200px;
+            border: 3px dashed #1f4630;
+            border-radius: 15px;
+            background-color: #f7fcf9;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 250px auto;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .drop-zone:hover {
+            background-color: #e8f5ee;
+            border-color: #3a7a52;
+        }
+        .drop-zone.dragover {
+            background-color: #d1ebd9;
+            border-color: #4CAF50;
+            transform: scale(1.02);
+        }
+        .drop-icon { font-size: 40px; margin-bottom: 10px; }
+        .drop-zone p { color: #1f4630; font-size: 16px; margin: 0; }
+                /* 新增：副标题的样式 */
+       
+                .subtitle {
+            margin-top: 50px;    /* 控制它和标题的距离 */
+            margin-bottom: 40px; /* 控制它和下方拖拽框的距离 */
+            font-size: 20px;     /* 字体大小 */
+            font-weight: bold;   /* 加粗 */
+            color: #1f4630;      /* 深绿色文字 */
+            text-shadow: 1px 1px 4px rgba(255, 255, 255, 0.9); /* 白色发光 */
+        }
     </style>
 </head>
 <body>
     <h1 class="main-title"><span>🌿</span> 智能植物医生 <span>🌿</span></h1>
-    <p>请上传一张植物叶片图片进行识别</p>
+    <p class="subtitle">请上传一张植物叶片图片进行识别</p>
+       <!-- 把原本的 input 隐藏起来，放在 drop-zone 里 -->
+    <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="previewAndSend()">
+    
+    <!-- 拖拽区域 -->
+    <div id="drop-zone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+        <div class="drop-icon">📁</div>
+        <p>点击此处选择图片，或将图片拖拽到这里</p>
+    </div>
 
-    <input type="file" id="fileInput" accept="image/*" onchange="previewAndSend()">
-    <br><br>
+    <!-- 图片预览区保留 -->
     <img id="preview" src="" alt="图片预览" style="display: none;">
 
-    <div id="result-box">等待识别...</div>
+    <div id="result-box">智能医生正加急诊断中</div>
 
     <script>
         const socket = io();
@@ -67,6 +132,37 @@
             document.getElementById('result-box').innerText = 
                 `识别结果：${data.class_name}（置信度 ${data.confidence}）`;
         });
+
+                // ===== 拖拽上传逻辑 =====
+        const dropZone = document.getElementById('drop-zone');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                const fileInput = document.getElementById('fileInput');
+                fileInput.files = files; 
+                previewAndSend();        
+            }
+        });
+        // ===== 拖拽逻辑结束 =====
 
         // 上传图片并发送
         function previewAndSend() {
