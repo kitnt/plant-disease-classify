@@ -4,18 +4,37 @@ from ultralytics import YOLO
 import base64
 import cv2
 import numpy as np
+import pymysql
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
+def get_db():
+    return pymysql.connect(
+        host='localhost',
+        user='root',
+        password='hyy110921',  
+        database='plant_disease',
+        charset='utf8mb4'
+    )
 
 # 注意：分类模型的权重名通常是 yolov8s-cls.pt，训练出来的叫 best.pt
 # 假设算法组已经训练好了，放在 model/best.pt 里
-model = YOLO('yolov8n-cls.pt')  
+model = YOLO('model/best.pt')  
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/api/records')
+def get_records():
+    conn = get_db()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    cursor.execute("SELECT * FROM detection_records ORDER BY create_time DESC")
+    records = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(records)
 
 @socketio.on('connect')
 def test_connect():
@@ -23,9 +42,10 @@ def test_connect():
     emit('server_response', {'data': '连接成功！'})
 
 @socketio.on('video_frame')
+@socketio.on('video_frame')
 def handle_frame(data):
     print('收到前端发来的图像帧')
-    
+
     # 1. 把前端发来的 base64 字符串解码成图片
     img_data = base64.b64decode(data.split(',')[1])
     nparr = np.frombuffer(img_data, np.uint8)
@@ -33,12 +53,27 @@ def handle_frame(data):
 
     # 2. 用分类模型推理
     results = model(frame)
-    probs = results[0].probs  # 分类模型输出的是概率
+    probs = results[0].probs
     top1_idx = probs.top1
     top1_conf = float(probs.top1conf)
     class_name = results[0].names[top1_idx]
 
-    # 3. 把结果发回前端
+    # 3. 写数据库
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO detection_records (image_name, disease_name, confidence) VALUES (%s, %s, %s)",
+            ('uploaded.jpg', class_name, top1_conf)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("记录已保存到数据库")
+    except Exception as e:
+        print("数据库写入失败:", e)
+
+    # 4. 把结果发回前端
     emit('detection_result', {
         'class_name': class_name,
         'confidence': round(top1_conf, 3)
